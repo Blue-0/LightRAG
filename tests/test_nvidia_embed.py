@@ -50,12 +50,7 @@ class TestNvidiaEmbedding:
                 max_token_size=0,
             )
 
-        call_kwargs = mock_client.embeddings.create.call_args
-        assert "extra_body" in call_kwargs.kwargs or "extra_body" in (
-            call_kwargs[1] if len(call_kwargs) > 1 else {}
-        )
-        # Get the actual api_params passed as keyword arguments
-        actual_kwargs = call_kwargs.kwargs if call_kwargs.kwargs else call_kwargs[1]
+        actual_kwargs = mock_client.embeddings.create.call_args.kwargs
         extra_body = actual_kwargs.get("extra_body")
         assert extra_body is not None, "extra_body should be set for NVIDIA models"
         assert extra_body["input_type"] == "passage"
