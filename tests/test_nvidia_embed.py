@@ -55,7 +55,7 @@ class TestNvidiaEmbedding:
         assert extra_body is not None, "extra_body should be set for NVIDIA models"
         assert extra_body["input_type"] == "passage"
         assert extra_body["encoding_format"] == "float"
-        assert extra_body["modality"] == ["text"]
+        assert "modality" not in extra_body
         assert isinstance(result, np.ndarray)
 
     @pytest.mark.asyncio
@@ -109,3 +109,36 @@ class TestNvidiaEmbedding:
 
         actual_kwargs = mock_client.embeddings.create.call_args.kwargs
         assert "extra_body" not in actual_kwargs
+
+    @pytest.mark.asyncio
+    async def test_nvidia_model_batch_texts_no_modality(self):
+        """Multiple texts should not include a modality field that mismatches input length."""
+        from lightrag.llm.openai import openai_embed
+
+        texts = ["A" * 200, "B" * 300, "C" * 150]  # 3 long texts → passage
+        mock_response = self._make_mock_response(dim=4, count=len(texts))
+        mock_client = AsyncMock()
+        mock_client.embeddings.create = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch(
+            "lightrag.llm.openai.create_openai_async_client",
+            return_value=mock_client,
+        ):
+            result = await openai_embed.func(
+                texts,
+                model="nvidia/NV-Embed-v2",
+                max_token_size=0,
+            )
+
+        actual_kwargs = mock_client.embeddings.create.call_args.kwargs
+        extra_body = actual_kwargs.get("extra_body")
+        assert extra_body is not None, "extra_body should be set for NVIDIA models"
+        assert extra_body["input_type"] == "passage"
+        assert "modality" not in extra_body, (
+            "modality must not be present; a single-element list would mismatch "
+            "the input length and cause an API error"
+        )
+        assert isinstance(result, np.ndarray)
+        assert result.shape[0] == len(texts)

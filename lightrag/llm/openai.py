@@ -838,7 +838,6 @@ async def openai_embed(
             api_params["extra_body"] = {
                 "input_type": input_type,
                 "encoding_format": "float",
-                "modality": ["text"],
             }
 
         response = await openai_async_client.embeddings.create(**api_params)
