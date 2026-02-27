@@ -829,14 +829,22 @@ async def openai_embed(
 
         # Make API call
         # Détection modèle NVIDIA asymétrique
-        if "nvidia" in (model or "").lower():
+        if "nvidia" in kwargs.get("embedding_model", "").lower():
+            # Détection: si c'est un chunk de document (long) vs requête (court)
+            texts = api_params.get("input", [])
+            if texts and isinstance(texts, list):
+                avg_length = sum(len(t) for t in texts) / len(texts)
+                # Chunks > 100 caractères = document, sinon requête
+                input_type = "passage" if avg_length > 100 else "query"
+            else:
+                input_type = "passage"  # défaut pour l'indexation
+            
             api_params["extra_body"] = {
-                "input_type": "document",  # ou "query" selon le contexte
-                "encoding_format": "float"
+                "input_type": input_type,
+                "encoding_format": "float",
+                "modality": ["text"]
             }
-            # Optionnel: spécifier la modalité
-            if "modality" not in api_params.get("extra_body", {}):
-                api_params["extra_body"]["modality"] = ["text"]
+
 
         response = await openai_async_client.embeddings.create(**api_params)
 
