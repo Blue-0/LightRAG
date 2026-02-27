@@ -828,6 +828,16 @@ async def openai_embed(
             api_params["dimensions"] = embedding_dim
 
         # Make API call
+        # Détection modèle NVIDIA asymétrique
+        if "nvidia" in (model or "").lower():
+            api_params["extra_body"] = {
+                "input_type": "document",  # ou "query" selon le contexte
+                "encoding_format": "float"
+            }
+            # Optionnel: spécifier la modalité
+            if "modality" not in api_params.get("extra_body", {}):
+                api_params["extra_body"]["modality"] = ["text"]
+
         response = await openai_async_client.embeddings.create(**api_params)
 
         if token_tracker and hasattr(response, "usage"):
@@ -836,6 +846,8 @@ async def openai_embed(
                 "total_tokens": getattr(response.usage, "total_tokens", 0),
             }
             token_tracker.add_usage(token_counts)
+        
+        
 
         return np.array(
             [
@@ -940,6 +952,7 @@ async def azure_openai_embed(
     model: str | None = None,
     base_url: str | None = None,
     api_key: str | None = None,
+    embedding_dim: int | None = None,
     token_tracker: Any | None = None,
     client_configs: dict[str, Any] | None = None,
     api_version: str | None = None,
@@ -1012,6 +1025,7 @@ async def azure_openai_embed(
         model=deployment,
         base_url=base_url,
         api_key=api_key,
+        embedding_dim=embedding_dim,
         token_tracker=token_tracker,
         client_configs=client_configs,
         use_azure=True,
