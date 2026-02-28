@@ -1951,6 +1951,19 @@ class LightRAG:
                                     pipeline_status["history_messages"].append(
                                         error_msg
                                     )
+                            elif getattr(e, "status_code", None) == 401:
+                                # Authentication error - log clear message, no traceback
+                                error_msg = (
+                                    f"Authentication failed (HTTP 401) while processing "
+                                    f"{current_file_number}/{total_files}: {file_path}. "
+                                    f"Please check your LLM API key and permissions."
+                                )
+                                logger.error(error_msg)
+                                async with pipeline_status_lock:
+                                    pipeline_status["latest_message"] = error_msg
+                                    pipeline_status["history_messages"].append(
+                                        error_msg
+                                    )
                             else:
                                 # Other exceptions - log with traceback
                                 logger.error(traceback.format_exc())

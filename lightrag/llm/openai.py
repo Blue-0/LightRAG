@@ -13,6 +13,7 @@ if not pm.is_installed("openai"):
 
 from openai import (
     APIConnectionError,
+    AuthenticationError,
     RateLimitError,
     APITimeoutError,
 )
@@ -344,6 +345,14 @@ async def openai_complete_if_cache(
         raise
     except RateLimitError as e:
         logger.error(f"OpenAI API Rate Limit Error: {e}")
+        await openai_async_client.close()  # Ensure client is closed
+        raise
+    except AuthenticationError as e:
+        logger.error(
+            f"OpenAI API Authentication Error (HTTP 401),\n"
+            f"Model: {model}, Base URL: {base_url}\n"
+            f"Please check your API key and permissions. Got: {e}"
+        )
         await openai_async_client.close()  # Ensure client is closed
         raise
     except Exception as e:
