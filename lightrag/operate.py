@@ -3007,45 +3007,44 @@ async def extract_entities(
         task = asyncio.create_task(_process_with_semaphore(c))
         tasks.append(task)
 
-    # Wait for tasks to complete or for the first exception to occur
-    # This allows us to cancel remaining tasks if any task fails
-    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
+    # Wait for all tasks to complete, collecting both successes and failures
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.ALL_COMPLETED)
 
-    # Check if any task raised an exception and ensure all exceptions are retrieved
-    first_exception = None
+    # Check for cancellation exceptions first - those should still stop processing
+    cancellation_exception = None
     chunk_results = []
 
     for task in done:
         try:
             exception = task.exception()
             if exception is not None:
-                if first_exception is None:
-                    first_exception = exception
+                if isinstance(exception, PipelineCancelledException):
+                    cancellation_exception = exception
+                    break
+                # Log the error for the failed chunk and continue
+                progress_prefix = f"C[{processed_chunks + 1}/{total_chunks}]"
+                logger.error(
+                    f"Chunk extraction failed {progress_prefix}: {exception!s}"
+                )
+                if pipeline_status is not None and pipeline_status_lock is not None:
+                    async with pipeline_status_lock:
+                        error_msg = f"Chunk extraction failed {progress_prefix}: {exception!s}"
+                        pipeline_status["latest_message"] = error_msg
+                        pipeline_status["history_messages"].append(error_msg)
             else:
                 chunk_results.append(task.result())
         except Exception as e:
-            if first_exception is None:
-                first_exception = e
+            if isinstance(e, PipelineCancelledException):
+                cancellation_exception = e
+                break
+            logger.error(f"Unexpected error retrieving task result: {e!s}")
 
-    # If any task failed, cancel all pending tasks and raise the first exception
-    if first_exception is not None:
-        # Cancel all pending tasks
-        for pending_task in pending:
-            pending_task.cancel()
+    # If a cancellation was requested, re-raise it
+    if cancellation_exception is not None:
+        raise cancellation_exception
 
-        # Wait for cancellation to complete
-        if pending:
-            await asyncio.wait(pending)
-
-        # Add progress prefix to the exception message
-        progress_prefix = f"C[{processed_chunks + 1}/{total_chunks}]"
-
-        # Re-raise the original exception with a prefix
-        prefixed_exception = create_prefixed_exception(first_exception, progress_prefix)
-        raise prefixed_exception from first_exception
-
-    # If all tasks completed successfully, chunk_results already contains the results
     # Return the chunk_results for later processing in merge_nodes_and_edges
+    # (may be partial if some chunks failed)
     return chunk_results
 
 
