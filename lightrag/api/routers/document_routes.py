@@ -960,10 +960,21 @@ def _extract_pdf_pypdf(file_bytes: bytes, password: str = None) -> str:
     Raises:
         Exception: If PDF is encrypted and password is incorrect or missing
     """
+    import logging
+
     from pypdf import PdfReader  # type: ignore
 
+    # Suppress noisy pypdf warnings about malformed cross-reference entries
+    # (e.g. "Ignoring wrong pointing object ...") which are benign
+    pypdf_logger = logging.getLogger("pypdf")
+    original_level = pypdf_logger.level
+    pypdf_logger.setLevel(logging.ERROR)
+
     pdf_file = BytesIO(file_bytes)
-    reader = PdfReader(pdf_file)
+    try:
+        reader = PdfReader(pdf_file)
+    finally:
+        pypdf_logger.setLevel(original_level)
 
     # Check if PDF is encrypted
     if reader.is_encrypted:
