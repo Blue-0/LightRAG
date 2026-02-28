@@ -3131,35 +3131,43 @@ def create_prefixed_exception(original_exception: Exception, prefix: str) -> Exc
     Returns:
         A new exception with the prefix, maintaining the original exception type if possible.
     """
+    # Build prefixed args from the original exception.
+    if hasattr(original_exception, "args") and original_exception.args:
+        args = list(original_exception.args)
+        # Find the first string argument and prefix it. This is safer for
+        # exceptions like OSError where the first arg is an integer (errno).
+        found_str = False
+        for i, arg in enumerate(args):
+            if isinstance(arg, str):
+                args[i] = f"{prefix}: {arg}"
+                found_str = True
+                break
+
+        # If no string argument is found, prefix the first argument's string representation.
+        if not found_str:
+            args[0] = f"{prefix}: {args[0]}"
+    else:
+        args = [f"{prefix}: {str(original_exception)}"]
+
     try:
         # Method 1: Try to reconstruct using original arguments.
-        if hasattr(original_exception, "args") and original_exception.args:
-            args = list(original_exception.args)
-            # Find the first string argument and prefix it. This is safer for
-            # exceptions like OSError where the first arg is an integer (errno).
-            found_str = False
-            for i, arg in enumerate(args):
-                if isinstance(arg, str):
-                    args[i] = f"{prefix}: {arg}"
-                    found_str = True
-                    break
+        return type(original_exception)(*args)
+    except (TypeError, ValueError, AttributeError):
+        pass
 
-            # If no string argument is found, prefix the first argument's string representation.
-            if not found_str:
-                args[0] = f"{prefix}: {args[0]}"
+    # Method 2: If reconstruction fails (e.g., exception constructors requiring
+    # keyword-only arguments like APIStatusError(message, *, response, body)),
+    # modify the original exception's args in-place to preserve its type.
+    try:
+        original_exception.args = tuple(args)
+        return original_exception
+    except (TypeError, AttributeError):
+        pass
 
-            return type(original_exception)(*args)
-        else:
-            # Method 2: If no args, try single parameter construction.
-            return type(original_exception)(f"{prefix}: {str(original_exception)}")
-    except (TypeError, ValueError, AttributeError) as construct_error:
-        # Method 3: If reconstruction fails, wrap it in a RuntimeError.
-        # This is the safest fallback, as attempting to create the same type
-        # with a single string can fail if the constructor requires multiple arguments.
-        return RuntimeError(
-            f"{prefix}: {type(original_exception).__name__}: {str(original_exception)} "
-            f"(Original exception could not be reconstructed: {construct_error})"
-        )
+    # Method 3: Last resort — wrap in a RuntimeError.
+    return RuntimeError(
+        f"{prefix}: {type(original_exception).__name__}: {str(original_exception)}"
+    )
 
 
 def convert_to_user_format(
