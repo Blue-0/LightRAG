@@ -10,26 +10,17 @@ services:
     ports:
       - "${PORT:-9621}:9621"
     volumes:
-      # Syntaxe Swarm/Dokploy obligatoire pour les montages physiques locaux
-      - type: bind
-        source: /app/data/rag_storage
-        target: /app/data/rag_storage
-      - type: bind
-        source: /app/data/inputs
-        target: /app/data/inputs
-      - type: bind
-        source: /app/config.ini
-        target: /app/config.ini
-      - type: bind
-        source: /app/.env
-        target: /app/.env
+      # ON UTILISE LES VOLUMES NOMMÉS GÉRÉS PAR DOKPLOY
+      - rag_storage_volume:/app/data/rag_storage
+      - rag_inputs_volume:/app/data/inputs
+      - /app/config.ini:/app/config.ini
+      - /app/.env:/app/.env
     env_file:
       - .env
     environment:
       - WORKING_DIR=/app/data/rag_storage
       - INPUT_DIR=/app/data/inputs
       - WORKSPACE=default
-    # Dokploy / Swarm a besoin de l'instruction de déploiement pour la persistance locale
     deploy:
       mode: replicated
       replicas: 1
@@ -37,3 +28,10 @@ services:
         constraints: [node.role == manager]
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+# C'EST ICI QUE TOUT SE JOUE POUR DOKPLOY
+volumes:
+  rag_storage_volume:
+    name: rag-lightrag-storage-data
+  rag_inputs_volume:
+    name: rag-lightrag-inputs-data
