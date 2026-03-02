@@ -10,22 +10,30 @@ services:
     ports:
       - "${PORT:-9621}:9621"
     volumes:
-      # On utilise des VOLUMES NOMMÉS (qui persistent aux redémarrages de Dokploy)
-      - lightrag_data:/app/data/rag_storage
-      - lightrag_inputs:/app/data/inputs
-      # Les fichiers configs peuvent rester bindés si vous les éditez manuellement
-      - /app/config.ini:/app/config.ini
-      - /app/.env:/app/.env
+      # Syntaxe Swarm/Dokploy obligatoire pour les montages physiques locaux
+      - type: bind
+        source: /app/data/rag_storage
+        target: /app/data/rag_storage
+      - type: bind
+        source: /app/data/inputs
+        target: /app/data/inputs
+      - type: bind
+        source: /app/config.ini
+        target: /app/config.ini
+      - type: bind
+        source: /app/.env
+        target: /app/.env
     env_file:
       - .env
     environment:
       - WORKING_DIR=/app/data/rag_storage
       - INPUT_DIR=/app/data/inputs
       - WORKSPACE=default
-    restart: unless-stopped
+    # Dokploy / Swarm a besoin de l'instruction de déploiement pour la persistance locale
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    # ON DÉCLARE LES VOLUMES NOMMÉS ICI
-    volumes:
-      lightrag_data:
-      lightrag_inputs:
