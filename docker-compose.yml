@@ -10,17 +10,18 @@ services:
     ports:
       - "${PORT:-9621}:9621"
     volumes:
-      - ./data/rag_storage:/app/data/rag_storage
-      - ./data/inputs:/app/data/inputs
-      - ./config.ini:/app/config.ini
-      - ./.env:/app/.env
+      # ON UTILISE LES CHEMINS ABSOLUS DU VPS VERS LES CHEMINS INTERNES DU CONTENEUR
+      - /app/data/rag_storage:/app/rag_storage
+      - /app/data/inputs:/app/inputs
+      - /app/config.ini:/app/config.ini
+      - /app/.env:/app/.env
     env_file:
-      - .env
+      - /app/.env
     environment:
-      # ON FORCE LES VARIABLES SUR LE MÊME DOSSIER
-      - WORKING_DIR=/app/data/rag_storage
-      - INPUT_DIR=/app/data/inputs
-      - WORKSPACE=default                       
+      # VARIABLES D'ENVIRONNEMENT FIXES DANS LE CONTENEUR
+      - WORKING_DIR=/app/rag_storage
+      - INPUT_DIR=/app/inputs
+      - WORKSPACE=default
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
