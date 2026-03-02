@@ -10,17 +10,17 @@ services:
     ports:
       - "${PORT:-9621}:9621"
     volumes:
-      # ON UTILISE LES CHEMINS ABSOLUS DU VPS VERS LES CHEMINS INTERNES DU CONTENEUR
-      - /app/data/rag_storage:/app/rag_storage
-      - /app/data/inputs:/app/inputs
+      # On utilise des VOLUMES NOMMÉS (qui persistent aux redémarrages de Dokploy)
+      - lightrag_data:/app/data/rag_storage
+      - lightrag_inputs:/app/data/inputs
+      # Les fichiers configs peuvent rester bindés si vous les éditez manuellement
       - /app/config.ini:/app/config.ini
       - /app/.env:/app/.env
     env_file:
       - /app/.env
     environment:
-      # VARIABLES D'ENVIRONNEMENT FIXES DANS LE CONTENEUR
-      - WORKING_DIR=/app/rag_storage
-      - INPUT_DIR=/app/inputs
+      - WORKING_DIR=/app/data/rag_storage
+      - INPUT_DIR=/app/data/inputs
       - WORKSPACE=default
     restart: unless-stopped
     extra_hosts:
