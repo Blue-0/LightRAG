@@ -16,6 +16,11 @@ services:
       - ./.env:/app/.env
     env_file:
       - .env
+    environment:
+      # ON FORCE LES VARIABLES SUR LE MÊME DOSSIER
+      - WORKING_DIR=/app/data/rag_storage
+      - INPUT_DIR=/app/data/inputs
+      - WORKSPACE=default                       
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
