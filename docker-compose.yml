@@ -25,3 +25,7 @@ services:
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # ON DÉCLARE LES VOLUMES NOMMÉS ICI
+    volumes:
+      lightrag_data:
+      lightrag_inputs:
